@@ -367,7 +367,7 @@ void config_read(void)
 				while(!(UCSR0A & (1 << RXC0)))
 				{
 					print_hmc5843();
-					delay_ms(550);//at least 100ms interval between measurements
+					delay_ms(100);//at least 100ms interval between measurements
 				}
 				config_menu();
 			}

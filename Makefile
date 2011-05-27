@@ -77,7 +77,7 @@ ASRC =
 # Optimization level, can be [0, 1, 2, 3, s]. 
 #     0 = turn off optimization. s = optimize for size.
 #     (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = s
+OPT = 0
 
 
 # Debugging format.
@@ -196,7 +196,7 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 #"C:\arduino\hardware\tools\avr\bin\avrdude" -PCOM3 -c stk500v1 -patmega168 -b19200 -Uflash:w:Simon-PTH-v1.hex -V -F -C"C:\arduino\hardware\tools\avr\etc\avrdude.conf"
 SERIAL_AVRDUDE = C:\WinAVR-20100110\bin\avrdude.exe
 SERIAL_AVRDUDE_CONFIG = C:\WinAVR-20100110\bin\avrdude.conf
-SERIAL_AVRDUDE_PORT = COM6
+SERIAL_AVRDUDE_PORT = COM4
 SERIAL_AVRDUDE_SPEED = 57600
 SERIAL_AVRDUDE_PROGRAMMER = stk500v1
 
