@@ -1,5 +1,5 @@
 /*
-    5-23-11
+    6-8-11
     Copyright Spark Fun Electronics© 2011
     Aaron Weiss
     aaron at sparkfun dot com
@@ -20,6 +20,7 @@
 	v19 added baud rate selection, default to 57600bps, various bug fixes
 	v19i fixed baud menu return bugs
 	v20 using ITG3200 gyro
+	v21 added auto self test upon startup (see notes)
 	
 	ADXL345: Accelerometer
 	HMC5843: Magnetometer
@@ -28,8 +29,8 @@
 	Notes: 
 	
 	-To get out of autorun, hit ctrl-z
-	
 	-max baud rate @8MHz is 57600bps
+	-self-test startup: LED blinks 5 times then OFF = GOOD, LED ON = BAD
 	
 */
 
@@ -85,7 +86,7 @@ void write_to_EEPROM(unsigned int Address, unsigned char Data);
 unsigned char read_from_EEPROM(unsigned int Address);
 
 ///============Display Strings============//////////////////
-const char wlcm_str[] PROGMEM = "\n\n\r9DOF IMU Firmware v20 \n\r==========================";
+const char wlcm_str[] PROGMEM = "\n\n\r9DOF IMU Firmware v21 \n\r==========================";
 const char accel[] PROGMEM = "\n\r[1]Accelerometer: ADXL345 \n\r";
 const char mag[] PROGMEM = "[2]Magnetometer: HMC5843 \n\r";
 const char gyro[] PROGMEM = "[3]Gyroscope: ITG-3200 \n\r";
@@ -102,17 +103,10 @@ long baud;
 int main(void)
 {
 	init();
+	self_test();
 	
 	while(1)
 	{	
-		sbi(PORTB, STATUS_LED);
-		delay_ms(1000);
-		cbi(PORTB, STATUS_LED);
-		delay_ms(1000);
-		sbi(PORTB, STATUS_LED);
-		delay_ms(1000);
-		cbi(PORTB, STATUS_LED);
-		
 		//check to see if autorun is set, if it is don't print the menu
 		if(read_from_EEPROM(1) == 48) config_read();
 		else config_menu();
@@ -367,7 +361,7 @@ void config_read(void)
 				while(!(UCSR0A & (1 << RXC0)))
 				{
 					print_hmc5843();
-					delay_ms(100);//at least 100ms interval between measurements
+					delay_ms(550);//at least 100ms interval between measurements
 				}
 				config_menu();
 			}
@@ -666,31 +660,66 @@ void self_test(void)
 	cbi(TWCR, TWEN);	// Disable TWI
 	sbi(TWCR, TWEN);	// Enable TWI
 	
+	int gyro_flag = 0;
+	int mag_flag = 0;
+	int accel_flag = 0;
+	
 	if(data == 0x69)
 	{
-		printf("ITG: GOOD\n\r");
-	}else printf("ITG: BAD\n\r");
+		//printf("ITG: GOOD\n\r");
+		gyro_flag = 1;
+	}//else printf("ITG: BAD\n\r");
 	
 	if(hmc_flag == 0)
 	{
-		printf("HMC: GOOD\n\r");
-	}else printf("HMC: BAD\n\r");
+		//printf("HMC: GOOD\n\r");
+		mag_flag = 1;
+	}//else printf("HMC: BAD\n\r");
 	
 	if(x == 0xE5)
 	{
-		printf("ADXL: GOOD\n\r");
-	}else printf("ADXL: BAD\n\r");
+		//printf("ADXL: GOOD\n\r");
+		accel_flag = 1;
+	}//else printf("ADXL: BAD\n\r");
 	
-	while(!(UCSR0A & (1 << RXC0)));
+	if(gyro_flag ==1 && mag_flag == 1 && accel_flag == 1)
+	{
+		sbi(PORTB, 5);
+		delay_ms(1000);
+		cbi(PORTB, 5);
+		delay_ms(1000);
+		sbi(PORTB, 5);
+		delay_ms(1000);
+		cbi(PORTB, 5);
+		delay_ms(1000);
+		sbi(PORTB, 5);
+		delay_ms(1000);
+		cbi(PORTB, 5);
+		delay_ms(1000);
+		sbi(PORTB, 5);
+		delay_ms(1000);
+		cbi(PORTB, 5);
+		delay_ms(1000);
+		sbi(PORTB, 5);
+		delay_ms(1000);
+		cbi(PORTB, 5);
+		
+		gyro_flag = 0;
+		mag_flag = 0;
+		accel_flag = 0;
+		
+	}else sbi(PORTB, 5);
+	
+	//while(!(UCSR0A & (1 << RXC0)));
 	config_menu();
 } 
 
 void print_itg3200(void)
 {
 	
-	printf("x= %5d, ", x_gyro());
-	printf("y= %5d, ", y_gyro());
-	printf("z= %5d\n\r", z_gyro());
+	printf("x= %4d, ", x_gyro());
+	printf("y= %4d, ", y_gyro());
+	printf("z= %4d\n\r", z_gyro());
 
 	delay_ms(20);
 }
@@ -1039,6 +1068,8 @@ void init (void)
     DDRC = 0b00010000; //PORTC4 (SDA), PORTC5 (SCL), PORTC all others are inputs
     DDRD = 0b00000010; //PORTD (TX output on PD1)
 	PORTC = 0b00110000; //pullups on the I2C bus
+	
+	cbi(PORTB, 5);
 	
 	i2cInit();
 	accelerometer_init();
