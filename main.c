@@ -1,5 +1,5 @@
 /*
-    6-8-11
+    10-5-11
     Copyright Spark Fun Electronics© 2011
     Aaron Weiss
     aaron at sparkfun dot com
@@ -14,16 +14,17 @@
 	Default Baud: 57600bps
 	
 	Revision Notes:
-	Hardware v21
+	Hardware v22
 	Firmware: 
 	v18 took self test off of menu, explain how to use it in help menu
 	v19 added baud rate selection, default to 57600bps, various bug fixes
 	v19i fixed baud menu return bugs
 	v20 using ITG3200 gyro
 	v21 added auto self test upon startup (see notes)
+	v22 corrected HMC output, x and y registers are different in the HMC5883
 	
 	ADXL345: Accelerometer
-	HMC5843: Magnetometer
+	HMC5883: Magnetometer
 	ITG3200: Pitch, Roll, and Yaw Gyro
 	
 	Notes: 
@@ -70,7 +71,7 @@ void help(void);
 void magnetometer(void);
 void magnetometer_init(void);
 void print_adxl345(void);
-void print_hmc5843(void);
+void print_hmc5883(void);
 void print_itg3200(void);
 void raw(void);
 void self_test(void);
@@ -86,9 +87,9 @@ void write_to_EEPROM(unsigned int Address, unsigned char Data);
 unsigned char read_from_EEPROM(unsigned int Address);
 
 ///============Display Strings============//////////////////
-const char wlcm_str[] PROGMEM = "\n\n\r9DOF IMU Firmware v21 \n\r==========================";
+const char wlcm_str[] PROGMEM = "\n\n\r9DOF IMU Firmware v22 \n\r==========================";
 const char accel[] PROGMEM = "\n\r[1]Accelerometer: ADXL345 \n\r";
-const char mag[] PROGMEM = "[2]Magnetometer: HMC5843 \n\r";
+const char mag[] PROGMEM = "[2]Magnetometer: HMC5883 \n\r";
 const char gyro[] PROGMEM = "[3]Gyroscope: ITG-3200 \n\r";
 const char raw_out[] PROGMEM = "[4]Raw Output\n\r";
 const char baud_change[] PROGMEM = "[5]Change Baud Rate: ";
@@ -165,7 +166,7 @@ void auto_raw(void)
 		printf("%d,", y_mag);
 		printf("%d", z_mag);
 		printf("#\n\r");
-		delay_ms(450);//at least 100ms interval between mag measurements
+		delay_ms(350);//at least 100ms interval between mag measurements
 	}
 
 	//if a button is pressed and that button is ctrl-z, reset autorun, display menu
@@ -360,8 +361,8 @@ void config_read(void)
 			{
 				while(!(UCSR0A & (1 << RXC0)))
 				{
-					print_hmc5843();
-					delay_ms(550);//at least 100ms interval between measurements
+					print_hmc5883();
+					delay_ms(350);//at least 100ms interval between measurements
 				}
 				config_menu();
 			}
@@ -451,7 +452,7 @@ void help(void)
 	printf("[ctrl-z] ctrl+z at anytime will toggle between raw output and the menu\n\r");
 }
 
-void print_hmc5843(void)
+void print_hmc5883(void)
 {
 	magnetometer();
 	printf("x=%4d, ", x_mag);
@@ -469,12 +470,15 @@ void magnetometer(void)
 		x_mag, y_mag, z_mag.
 	*/
 	
+	magnetometer_init();
+	
 	uint8_t xh, xl, yh, yl, zh, zl;
 	
 	//must read all six registers plus one to move the pointer back to 0x03
+	
 	i2cSendStart();
 	i2cWaitForComplete();
-	i2cSendByte(0x3D);          //read from HMC
+	i2cSendByte(0x3D);    //write to HMC
 	i2cWaitForComplete();
 	i2cReceiveByte(TRUE);
 	i2cWaitForComplete();
@@ -489,17 +493,6 @@ void magnetometer(void)
 	
 	i2cReceiveByte(TRUE);
 	i2cWaitForComplete();
-	yh = i2cGetReceivedByte();	//y high byte
-	i2cWaitForComplete();
-	
-	i2cReceiveByte(TRUE);
-	i2cWaitForComplete();
-	yl = i2cGetReceivedByte();	//y low byte
-	i2cWaitForComplete();
-	y_mag = yl|(yh << 8);
-	
-	i2cReceiveByte(TRUE);
-	i2cWaitForComplete();
 	zh = i2cGetReceivedByte();	
 	i2cWaitForComplete();      //z high byte
 	
@@ -509,6 +502,17 @@ void magnetometer(void)
 	i2cWaitForComplete();
 	z_mag = zl|(zh << 8);
 	
+	i2cReceiveByte(TRUE);
+	i2cWaitForComplete();
+	yh = i2cGetReceivedByte();	//y high byte
+	i2cWaitForComplete();
+	
+	i2cReceiveByte(TRUE);
+	i2cWaitForComplete();
+	yl = i2cGetReceivedByte();	//y low byte
+	i2cWaitForComplete();
+	y_mag = yl|(yh << 8);
+	
 	i2cSendByte(0x3D);         //must reach 0x09 to go back to 0x03
 	i2cWaitForComplete();
 	
@@ -517,6 +521,26 @@ void magnetometer(void)
 
 void magnetometer_init(void)
 {
+	i2cSendStart();
+	i2cWaitForComplete();
+	i2cSendByte(0x3C);    //write to HMC
+	i2cWaitForComplete();
+	i2cSendByte(0x00);    //mode register
+	i2cWaitForComplete();
+	i2cSendByte(0x70);    //8 average, 15Hz, normal measurement
+	i2cWaitForComplete();
+	i2cSendStop();
+	
+	i2cSendStart();
+	i2cWaitForComplete();
+	i2cSendByte(0x3C);    //write to HMC
+	i2cWaitForComplete();
+	i2cSendByte(0x01);    //mode register
+	i2cWaitForComplete();
+	i2cSendByte(0xA0);    //gain = 5
+	i2cWaitForComplete();
+	i2cSendStop();
+	
 	i2cSendStart();
 	i2cWaitForComplete();
 	i2cSendByte(0x3C);    //write to HMC
@@ -543,7 +567,7 @@ void raw(void)
 	printf("%d,", y_mag);
 	printf("%d", z_mag);
 	printf("#\n\r");
-	delay_ms(450);//at least 100ms interval between mag measurements
+	delay_ms(350);//at least 100ms interval between mag measurements
 }
 
 void self_test(void)
