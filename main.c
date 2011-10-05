@@ -579,10 +579,13 @@ void self_test(void)
 	y_mag = 0;
 	z_mag = 0;
 	
+	magnetometer_init();
+	
 	//must read all six registers plus one to move the pointer back to 0x03
+	
 	i2cSendStart();
 	i2cWaitForComplete();
-	i2cSendByte(0x3D);          //read from HMC
+	i2cSendByte(0x3D);    //write to HMC
 	i2cWaitForComplete();
 	i2cReceiveByte(TRUE);
 	i2cWaitForComplete();
@@ -597,17 +600,6 @@ void self_test(void)
 	
 	i2cReceiveByte(TRUE);
 	i2cWaitForComplete();
-	yh = i2cGetReceivedByte();	//y high byte
-	i2cWaitForComplete();
-	
-	i2cReceiveByte(TRUE);
-	i2cWaitForComplete();
-	yl = i2cGetReceivedByte();	//y low byte
-	i2cWaitForComplete();
-	y_mag = yl|(yh << 8);
-	
-	i2cReceiveByte(TRUE);
-	i2cWaitForComplete();
 	zh = i2cGetReceivedByte();	
 	i2cWaitForComplete();      //z high byte
 	
@@ -616,6 +608,17 @@ void self_test(void)
 	zl = i2cGetReceivedByte();	//z low byte
 	i2cWaitForComplete();
 	z_mag = zl|(zh << 8);
+	
+	i2cReceiveByte(TRUE);
+	i2cWaitForComplete();
+	yh = i2cGetReceivedByte();	//y high byte
+	i2cWaitForComplete();
+	
+	i2cReceiveByte(TRUE);
+	i2cWaitForComplete();
+	yl = i2cGetReceivedByte();	//y low byte
+	i2cWaitForComplete();
+	y_mag = yl|(yh << 8);
 	
 	i2cSendByte(0x3D);         //must reach 0x09 to go back to 0x03
 	i2cWaitForComplete();
