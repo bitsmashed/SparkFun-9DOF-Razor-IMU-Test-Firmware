@@ -150,6 +150,7 @@ void print_adxl345(void)
 
 void auto_raw(void)
 {
+	unsigned int ticks = 0;
 	//while there is not a button pressed
 	while(!(UCSR0A & (1 << RXC0)))
 	{
@@ -161,12 +162,13 @@ void auto_raw(void)
 		printf("%d,", x_gyro());
 		printf("%d,", y_gyro());
 		printf("%d,", z_gyro());
-		magnetometer();
+		if (ticks++ % 20 == 0) // Only once each 20 ticks, i.e. 400ms
+			magnetometer();
 		printf("%d,", x_mag);
 		printf("%d,", y_mag);
 		printf("%d", z_mag);
 		printf("#\n\r");
-		delay_ms(350);//at least 100ms interval between mag measurements
+		delay_ms(20);
 	}
 
 	//if a button is pressed and that button is ctrl-z, reset autorun, display menu
@@ -908,13 +910,13 @@ uint16_t z_gyro(void)
 }
 
 uint16_t x_accel(void)
-{		
+{
 	//0xA6 for a write
 	//0xA7 for a read
-	
+
 	uint8_t dummy, xh, xl;
 	uint16_t xo;
-	
+
 	//0x32 data registers
 	i2cSendStart();
 	i2cWaitForComplete();
